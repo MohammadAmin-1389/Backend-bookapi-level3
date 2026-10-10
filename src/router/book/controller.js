@@ -1,5 +1,4 @@
 import _ from "lodash";
-
 import Book from "./model.js";
 
 export const getBooks = async (req, res, next) => {
@@ -13,17 +12,21 @@ export const getBooks = async (req, res, next) => {
 
     const skip = (page - 1) * limit;
 
-    const [books, totalBooks] = await Promise.all([
-      Book.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
+    // فقط کتاب‌های کاربر فعلی
+    const filter = {
+      created_by: req.user.userId,
+    };
 
-      Book.countDocuments(),
+    const [books, totalBooks] = await Promise.all([
+      Book.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+
+      Book.countDocuments(filter),
     ]);
 
     const totalPages = Math.ceil(totalBooks / limit);
 
     res.status(200).json({
       data: books,
-
       pagination: {
         currentPage: page,
         limit,
@@ -40,7 +43,10 @@ export const getBooks = async (req, res, next) => {
 
 export const getBookById = async (req, res, next) => {
   try {
-    const book = await Book.findById(req.params.id);
+    const book = await Book.findOne({
+      _id: req.params.id,
+      created_by: req.user.userId,
+    });
 
     if (!book) {
       return res.status(404).json({
@@ -58,7 +64,10 @@ export const createBook = async (req, res, next) => {
   try {
     const data = _.pick(req.body, ["title", "author", "description"]);
 
-    const book = await Book.create(data);
+    const book = await Book.create({
+      ...data,
+      created_by: req.user.userId,
+    });
 
     res.status(201).json(book);
   } catch (error) {
@@ -70,10 +79,17 @@ export const updateBook = async (req, res, next) => {
   try {
     const data = _.pick(req.body, ["title", "author", "description"]);
 
-    const book = await Book.findByIdAndUpdate(req.params.id, data, {
-      new: true,
-      runValidators: true,
-    });
+    const book = await Book.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        created_by: req.user.userId,
+      },
+      data,
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
 
     if (!book) {
       return res.status(404).json({
@@ -89,7 +105,10 @@ export const updateBook = async (req, res, next) => {
 
 export const deleteBook = async (req, res, next) => {
   try {
-    const book = await Book.findByIdAndDelete(req.params.id);
+    const book = await Book.findOneAndDelete({
+      _id: req.params.id,
+      created_by: req.user.userId,
+    });
 
     if (!book) {
       return res.status(404).json({
@@ -99,7 +118,6 @@ export const deleteBook = async (req, res, next) => {
 
     res.status(200).json({
       message: "Book deleted successfully",
-      deletedBook: book,
     });
   } catch (error) {
     next(error);

@@ -1,5 +1,7 @@
 import express from "express";
 
+import auth from "../../middleware/auth.js";
+
 import {
   getBooks,
   getBookById,
@@ -12,20 +14,14 @@ import validation from "./validation.js";
 
 const router = express.Router();
 
-router.get("/", getBooks);
+router.get("/", auth, getBooks);
+
+router.get("/:id", auth, validation.id, getBookById);
 
 router.post("/", auth, validation.create, createBook);
 
 router.put("/:id", auth, validation.update, updateBook);
 
 router.delete("/:id", auth, validation.id, deleteBook);
-
-router.get("/:id", getBookById);
-
-router.post("/", validation.create, createBook);
-
-router.put("/:id", validation.update, updateBook);
-
-router.delete("/:id", validation.id, deleteBook);
 
 export default router;
